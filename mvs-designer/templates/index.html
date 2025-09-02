@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MVS Designer - 多维度照片3D建模服务</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-section {
+            margin-bottom: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e8f4ff;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .preview-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .preview-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .preview-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            font-size: 0.8em;
+            text-align: center;
+        }
+        
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        
+        .quality-section {
+            margin: 30px 0;
+        }
+        
+        .quality-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .quality-option {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .quality-option:hover,
+        .quality-option.selected {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+        
+        .quality-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .quality-desc {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .progress-section {
+            display: none;
+            margin-top: 30px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .status-message {
+            text-align: center;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .result-section {
+            display: none;
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .model-preview {
+            width: 100%;
+            max-width: 500px;
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin: 20px auto;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MVS Designer</h1>
+            <p>多维度照片3D建模服务</p>
+        </div>
+        
+        <div class="content">
+            <!-- 上传区域 -->
+            <div class="upload-section">
+                <h2>1. 上传多角度照片</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    请上传至少3张不同角度的照片（建议10-50张），包括上下前后左右等视角
+                </p>
+                
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">点击选择照片或拖拽到此处</div>
+                    <button class="btn">选择照片</button>
+                </div>
+                
+                <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+                
+                <div id="previewGrid" class="preview-grid"></div>
+            </div>
+            
+            <!-- 质量设置 -->
+            <div class="quality-section">
+                <h2>2. 选择重建质量</h2>
+                <div class="quality-options">
+                    <div class="quality-option" data-quality="low">
+                        <div class="quality-title">快速模式</div>
+                        <div class="quality-desc">处理速度快，质量一般<br>适合预览和测试</div>
+                    </div>
+                    <div class="quality-option selected" data-quality="medium">
+                        <div class="quality-title">标准模式</div>
+                        <div class="quality-desc">平衡质量和速度<br>推荐日常使用</div>
+                    </div>
+                    <div class="quality-option" data-quality="high">
+                        <div class="quality-title">高质量模式</div>
+                        <div class="quality-desc">最佳质量，耗时较长<br>适合专业用途</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 开始重建 -->
+            <div style="text-align: center; margin: 30px 0;">
+                <button id="startBtn" class="btn" style="font-size: 1.2em; padding: 15px 40px;" disabled>
+                    开始3D重建
+                </button>
+            </div>
+            
+            <!-- 进度显示 -->
+            <div id="progressSection" class="progress-section">
+                <h2>3. 重建进度</h2>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div id="statusMessage" class="status-message">准备开始...</div>
+            </div>
+            
+            <!-- 结果显示 -->
+            <div id="resultSection" class="result-section">
+                <h2>4. 重建结果</h2>
+                <div class="model-preview">
+                    3D模型预览区域
+                </div>
+                <button id="downloadBtn" class="btn" style="font-size: 1.2em; padding: 15px 40px;">
+                    下载3D模型
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedFiles = [];
+        let currentJobId = null;
+        let selectedQuality = 'medium';
+        
+        // 文件选择处理
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        // 拖拽上传
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        
+        // 质量选择
+        document.querySelectorAll('.quality-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.quality-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedQuality = option.dataset.quality;
+            });
+        });
+        
+        // 开始重建按钮
+        document.getElementById('startBtn').addEventListener('click', startReconstruction);
+        
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            addFiles(files);
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(event.dataTransfer.files);
+            addFiles(files);
+        }
+        
+        function handleDragLeave(event) {
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function addFiles(files) {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            selectedFiles = [...selectedFiles, ...imageFiles];
+            updatePreview();
+            updateStartButton();
+        }
+        
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updatePreview();
+            updateStartButton();
+        }
+        
+        function updatePreview() {
+            const previewGrid = document.getElementById('previewGrid');
+            previewGrid.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                
+                const img = document.createElement('img');
+                img.className = 'preview-img';
+                img.src = URL.createObjectURL(file);
+                
+                const name = document.createElement('div');
+                name.className = 'preview-name';
+                name.textContent = file.name;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => removeFile(index);
+                
+                previewItem.appendChild(img);
+                previewItem.appendChild(name);
+                previewItem.appendChild(removeBtn);
+                previewGrid.appendChild(previewItem);
+            });
+        }
+        
+        function updateStartButton() {
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = selectedFiles.length < 3;
+            startBtn.textContent = selectedFiles.length < 3 ? 
+                `需要至少3张照片 (当前: ${selectedFiles.length})` : 
+                `开始3D重建 (${selectedFiles.length}张照片)`;
+        }
+        
+        async function startReconstruction() {
+            if (selectedFiles.length < 3) return;
+            
+            try {
+                // 显示进度区域
+                document.getElementById('progressSection').style.display = 'block';
+                document.getElementById('startBtn').disabled = true;
+                
+                // 上传照片
+                updateStatus('正在上传照片...', 10);
+                
+                const formData = new FormData();
+                selectedFiles.forEach(file => {
+                    formData.append('images', file);
+                });
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const uploadResult = await uploadResponse.json();
+                
+                if (!uploadResponse.ok) {
+                    throw new Error(uploadResult.error);
+                }
+                
+                currentJobId = uploadResult.job_id;
+                updateStatus('照片上传成功，开始3D重建...', 20);
+                
+                // 开始重建
+                const reconstructResponse = await fetch('/api/reconstruct', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        job_id: currentJobId,
+                        quality: selectedQuality
+                    })
+                });
+                
+                const reconstructResult = await reconstructResponse.json();
+                
+                if (!reconstructResponse.ok) {
+                    throw new Error(reconstructResult.error);
+                }
+                
+                updateStatus(`3D重建已启动，预计耗时: ${reconstructResult.estimated_time}`, 30);
+                
+                // 开始轮询状态
+                pollStatus();
+                
+            } catch (error) {
+                updateStatus(`错误: ${error.message}`, 0);
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+        
+        async function pollStatus() {
+            if (!currentJobId) return;
+            
+            try {
+                const response = await fetch(`/api/status/${currentJobId}`);
+                const status = await response.json();
+                
+                if (response.ok && !status.error) {
+                    updateStatus(status.message, status.progress);
+                    
+                    if (status.status === 'completed') {
+                        showResult(status);
+                    } else if (status.status === 'failed') {
+                        updateStatus(`重建失败: ${status.message}`, 0);
+                        document.getElementById('startBtn').disabled = false;
+                    } else {
+                        // 继续轮询
+                        setTimeout(pollStatus, 5000);
+                    }
+                } else {
+                    throw new Error(status.error || '状态查询失败');
+                }
+                
+            } catch (error) {
+                updateStatus(`状态查询错误: ${error.message}`, 0);
+                setTimeout(pollStatus, 10000); // 错误时延长轮询间隔
+            }
+        }
+        
+        function updateStatus(message, progress) {
+            document.getElementById('statusMessage').textContent = message;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+        }
+        
+        function showResult(status) {
+            updateStatus('3D重建完成！', 100);
+            
+            const resultSection = document.getElementById('resultSection');
+            resultSection.style.display = 'block';
+            
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.onclick = () => {
+                window.open(`/api/download/${currentJobId}`, '_blank');
+            };
+            
+            // 重置界面
+            setTimeout(() => {
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').textContent = '开始新的3D重建';
+            }, 2000);
+        }
+        
+        // 初始化
+        updateStartButton();
+    </script>
+</body>
+</html>
