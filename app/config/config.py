@@ -32,6 +32,7 @@ class S3Config:
     region: str = 'us-east-1'
     bucket_name: Optional[str] = None
     use_ssl: bool = True
+    endpoint_url: Optional[str] = None  # 支持MinIO等S3兼容服务
 
 
 @dataclass
@@ -146,11 +147,12 @@ class Config:
     def get_s3_config(cls):
         """获取 S3 配置"""
         return S3Config(
-            access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-            region=os.environ.get('AWS_REGION', 'us-east-1'),
+            access_key_id=os.environ.get('S3_ACCESS_KEY_ID'),
+            secret_access_key=os.environ.get('S3_SECRET_ACCESS_KEY'),
+            region=os.environ.get('S3_REGION', 'us-east-1'),
             bucket_name=os.environ.get('S3_BUCKET_NAME'),
-            use_ssl=os.environ.get('S3_USE_SSL', 'true').lower() == 'true'
+            use_ssl=os.environ.get('S3_USE_SSL', 'true').lower() == 'true',
+            endpoint_url=os.environ.get('S3_ENDPOINT_URL')  # 支持MinIO等S3兼容服务
         )
     
     @classmethod
@@ -287,15 +289,15 @@ class Config:
     
     # AWS S3配置
     @property
-    def AWS_ACCESS_KEY_ID(self):
+    def S3_ACCESS_KEY_ID(self):
         return self.S3.access_key_id
     
     @property
-    def AWS_SECRET_ACCESS_KEY(self):
+    def S3_SECRET_ACCESS_KEY(self):
         return self.S3.secret_access_key
     
     @property
-    def AWS_REGION(self):
+    def S3_REGION(self):
         return self.S3.region
     
     @property
@@ -305,6 +307,10 @@ class Config:
     @property
     def S3_USE_SSL(self):
         return self.S3.use_ssl
+    
+    @property
+    def S3_ENDPOINT_URL(self):
+        return self.S3.endpoint_url
     
     # Meshroom配置
     @property

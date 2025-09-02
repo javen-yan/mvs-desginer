@@ -20,7 +20,8 @@ class S3Service:
     """Service for managing S3 object storage operations."""
     
     def __init__(self, aws_access_key_id: str, aws_secret_access_key: str, 
-                 region: str, bucket_name: str, use_ssl: bool = True):
+                 region: str, bucket_name: str, use_ssl: bool = True, 
+                 endpoint_url: str = None):
         """
         Initialize S3 service.
         
@@ -30,18 +31,25 @@ class S3Service:
             region: AWS region
             bucket_name: S3 bucket name
             use_ssl: Whether to use SSL for connections
+            endpoint_url: Custom endpoint URL (for MinIO, etc.)
         """
         self.bucket_name = bucket_name
         self.region = region
         
         try:
-            self.s3_client = boto3.client(
-                's3',
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=region,
-                use_ssl=use_ssl
-            )
+            client_kwargs = {
+                'aws_access_key_id': aws_access_key_id,
+                'aws_secret_access_key': aws_secret_access_key,
+                'region_name': region,
+                'use_ssl': use_ssl
+            }
+            
+            # 如果提供了自定义端点（如MinIO），则添加endpoint_url
+            if endpoint_url:
+                client_kwargs['endpoint_url'] = endpoint_url
+                logger.info(f"Using custom S3 endpoint: {endpoint_url}")
+            
+            self.s3_client = boto3.client('s3', **client_kwargs)
             
             # Test connection
             self._test_connection()
@@ -431,8 +439,8 @@ def create_s3_service(config) -> Optional[S3Service]:
         S3Service instance or None if S3 is not configured
     """
     if not all([
-        config.AWS_ACCESS_KEY_ID,
-        config.AWS_SECRET_ACCESS_KEY,
+        config.S3_ACCESS_KEY_ID,
+        config.S3_SECRET_ACCESS_KEY,
         config.S3_BUCKET_NAME
     ]):
         logger.warning("S3 configuration incomplete, S3 features will be disabled")
@@ -440,11 +448,12 @@ def create_s3_service(config) -> Optional[S3Service]:
     
     try:
         return S3Service(
-            aws_access_key_id=config.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
-            region=config.AWS_REGION,
+            aws_access_key_id=config.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=config.S3_SECRET_ACCESS_KEY,
+            region=config.S3_REGION,
             bucket_name=config.S3_BUCKET_NAME,
-            use_ssl=config.S3_USE_SSL
+            use_ssl=config.S3_USE_SSL,
+            endpoint_url=config.S3_ENDPOINT_URL
         )
     except Exception as e:
         logger.error(f"Failed to create S3 service: {e}")

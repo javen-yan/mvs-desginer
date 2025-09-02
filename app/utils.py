@@ -287,7 +287,7 @@ def validate_s3_config(config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     Returns:
         (是否有效, 错误信息)
     """
-    required_keys = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'S3_BUCKET_NAME']
+    required_keys = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_BUCKET_NAME']
     
     for key in required_keys:
         if not config.get(key):

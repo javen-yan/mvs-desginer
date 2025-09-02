@@ -244,9 +244,9 @@ JWT_SECRET_KEY=your-jwt-secret-key-here
 DATABASE_URL=postgresql://mvs_user:mvs_password@localhost:5432/mvs_designer
 
 # S3存储配置 (可选)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_REGION=us-east-1
 S3_BUCKET_NAME=your-bucket-name
 USE_S3_STORAGE=false
 
