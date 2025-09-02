@@ -1,7 +1,6 @@
 """
 MVS Designer Flask application factory.
 """
-import os
 import logging
 from flask import Flask
 from flask_cors import CORS
@@ -13,21 +12,14 @@ from .auth import init_jwt
 from .services import create_s3_service
 
 
-def create_app(config_name: str = None) -> Flask:
+def create_app() -> Flask:
     """
     Create and configure Flask application.
-    
-    Args:
-        config_name: Configuration name to use
         
     Returns:
         Configured Flask application
     """
-    app = Flask(__name__)
-    
-    # Load configuration
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
+    app = Flask(__name__, template_folder='../templates', static_folder='../static')
     
     config_class = get_config()
     app.config.from_object(config_class)
@@ -41,10 +33,10 @@ def create_app(config_name: str = None) -> Flask:
     init_jwt(app)
     
     # Initialize database migration
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     
     # Initialize S3 service
-    s3_service = create_s3_service(app.config)
+    s3_service = create_s3_service(config_class)
     app.s3_service = s3_service
     
     # Initialize configuration
@@ -67,8 +59,8 @@ def create_app(config_name: str = None) -> Flask:
     with app.app_context():
         try:
             db.create_all()
-            logger.info("Database tables created successfully")
+            logging.info("Database tables created successfully")
         except Exception as e:
-            logger.error(f"Failed to create database tables: {e}")
+            logging.error(f"Failed to create database tables: {e}")
     
     return app

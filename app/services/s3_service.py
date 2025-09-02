@@ -11,6 +11,8 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from werkzeug.datastructures import FileStorage
 
+from app.config import Config
+
 
 logger = logging.getLogger(__name__)
 

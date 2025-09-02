@@ -3,7 +3,10 @@ Configuration settings for MVS Designer application.
 """
 import os
 from datetime import timedelta
-from typing import Optional
+import dotenv
+
+
+dotenv.load_dotenv()
 
 
 class Config:

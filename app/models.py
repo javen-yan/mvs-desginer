@@ -188,7 +188,7 @@ class UserSession(db.Model):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
-    session_token = Column(String(255), unique=True, nullable=False, index=True)
+    session_token = Column(Text, unique=True, nullable=False, index=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
