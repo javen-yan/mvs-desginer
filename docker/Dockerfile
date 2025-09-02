@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     libxmu6 \
     libgconf-2-4 \
+    libpq-dev \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建工作目录
