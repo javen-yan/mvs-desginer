@@ -1,11 +1,22 @@
+"""
+Meshroom service for 3D reconstruction with database integration.
+"""
 import os
 import json
 import subprocess
 import threading
 import time
 import shutil
+import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Any, Optional
+
+from .models import db, ReconstructionJob
+
+
+logger = logging.getLogger(__name__)
+
 
 class MeshroomService:
     def __init__(self, config):
@@ -34,7 +45,8 @@ class MeshroomService:
         # 如果没找到，返回默认值，让用户自己配置
         return 'meshroom_batch'
     
-    def start_reconstruction(self, job_id, input_folder, quality='medium', preset='default'):
+    def start_reconstruction(self, job_id: str, input_folder: str, 
+                           quality: str = 'medium', preset: str = 'default') -> Dict[str, Any]:
         """启动3D重建任务"""
         try:
             # 设置输出路径
@@ -43,6 +55,13 @@ class MeshroomService:
             
             os.makedirs(output_folder, exist_ok=True)
             os.makedirs(temp_folder, exist_ok=True)
+            
+            # 更新数据库中的任务状态
+            reconstruction_job = ReconstructionJob.query.filter_by(job_id=job_id).first()
+            if reconstruction_job:
+                reconstruction_job.update_status('initializing', 0.0)
+                reconstruction_job.output_folder = output_folder
+                db.session.commit()
             
             # 初始化任务状态
             self.jobs_status[job_id] = {
@@ -73,11 +92,16 @@ class MeshroomService:
         except Exception as e:
             return {'success': False, 'error': str(e)}
     
-    def _run_reconstruction(self, job_id, input_folder, output_folder, temp_folder, quality, preset):
+    def _run_reconstruction(self, job_id: str, input_folder: str, output_folder: str, 
+                           temp_folder: str, quality: str, preset: str) -> None:
         """执行Meshroom重建流程"""
         try:
+            # 更新内存状态
             self.jobs_status[job_id]['status'] = 'running'
             self.jobs_status[job_id]['message'] = '正在进行3D重建...'
+            
+            # 更新数据库状态
+            self._update_job_status(job_id, 'running', 5.0, '正在进行3D重建...')
             
             # 构建Meshroom命令
             cmd = self._build_meshroom_command(input_folder, output_folder, temp_folder, quality, preset)
@@ -85,6 +109,9 @@ class MeshroomService:
             # 更新状态
             self.jobs_status[job_id]['progress'] = 10
             self.jobs_status[job_id]['message'] = '启动Meshroom处理...'
+            self._update_job_status(job_id, 'running', 10.0, '启动Meshroom处理...')
+            
+            logger.info(f"Starting Meshroom reconstruction for job {job_id}")
             
             # 执行Meshroom命令
             process = subprocess.Popen(
@@ -103,23 +130,57 @@ class MeshroomService:
             
             if process.returncode == 0:
                 # 处理输出文件
-                self._process_output(job_id, temp_folder, output_folder)
+                output_file = self._process_output(job_id, temp_folder, output_folder)
                 
                 self.jobs_status[job_id]['status'] = 'completed'
                 self.jobs_status[job_id]['progress'] = 100
                 self.jobs_status[job_id]['message'] = '3D重建完成'
                 self.jobs_status[job_id]['end_time'] = datetime.now().isoformat()
+                self.jobs_status[job_id]['output_file'] = output_file
+                
+                # 更新数据库状态
+                self._update_job_status(job_id, 'completed', 100.0, '3D重建完成')
                 
                 # 生成模型信息
                 self._generate_model_info(job_id, output_folder)
                 
+                logger.info(f"Reconstruction completed for job {job_id}")
+                
             else:
+                error_msg = f'重建失败: {stderr}'
                 self.jobs_status[job_id]['status'] = 'failed'
-                self.jobs_status[job_id]['message'] = f'重建失败: {stderr}'
+                self.jobs_status[job_id]['message'] = error_msg
+                
+                # 更新数据库状态
+                self._update_job_status(job_id, 'failed', error_message=error_msg)
+                
+                logger.error(f"Reconstruction failed for job {job_id}: {stderr}")
                 
         except Exception as e:
+            error_msg = f'重建过程出错: {str(e)}'
             self.jobs_status[job_id]['status'] = 'failed'
-            self.jobs_status[job_id]['message'] = f'重建过程出错: {str(e)}'
+            self.jobs_status[job_id]['message'] = error_msg
+            
+            # 更新数据库状态
+            self._update_job_status(job_id, 'failed', error_message=error_msg)
+            
+            logger.error(f"Reconstruction error for job {job_id}: {e}")
+    
+    def _update_job_status(self, job_id: str, status: str, progress: float = None, 
+                          message: str = None, error_message: str = None) -> None:
+        """更新数据库中的任务状态"""
+        try:
+            reconstruction_job = ReconstructionJob.query.filter_by(job_id=job_id).first()
+            if reconstruction_job:
+                reconstruction_job.update_status(
+                    status=status,
+                    progress=progress,
+                    error_message=error_message
+                )
+                db.session.commit()
+        except Exception as e:
+            logger.error(f"Failed to update job status in database: {e}")
+            db.session.rollback()
     
     def _build_meshroom_command(self, input_folder, output_folder, temp_folder, quality, preset):
         """构建Meshroom命令行参数"""
