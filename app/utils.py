@@ -4,7 +4,6 @@ Utility functions for MVS Designer application.
 import os
 import time
 import shutil
-import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
@@ -13,9 +12,10 @@ import cv2
 import numpy as np
 from PIL import Image
 from PIL.ExifTags import TAGS
+from .logger import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger('utils')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'tiff', 'bmp'}
 

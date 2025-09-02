@@ -2,15 +2,12 @@
 Database models for MVS Designer application.
 """
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
 
-db = SQLAlchemy()
-bcrypt = Bcrypt()
+from .extensions import db, bcrypt
 
 
 class User(db.Model):

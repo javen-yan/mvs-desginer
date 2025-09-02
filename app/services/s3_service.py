@@ -2,7 +2,6 @@
 S3 storage service for file management.
 """
 import os
-import logging
 from typing import Optional, Dict, Any, List, Tuple
 from io import BytesIO
 from urllib.parse import urlparse
@@ -11,10 +10,10 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from werkzeug.datastructures import FileStorage
 
-from app.config import Config
+from ..config import Config
+from ..logger import get_logger
 
-
-logger = logging.getLogger(__name__)
+logger = get_logger('s3_service')
 
 
 class S3Service:
@@ -421,7 +420,7 @@ class S3Service:
                 return None
 
 
-def create_s3_service(config: Config) -> Optional[S3Service]:
+def create_s3_service(config) -> Optional[S3Service]:
     """
     Create S3 service instance from configuration.
     

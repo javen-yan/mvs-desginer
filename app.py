@@ -1,75 +1,170 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-MVS Designer - 多维度照片3D建模服务
-基于Python和Meshroom实现的3D重建服务，支持用户认证、PostgreSQL数据库和S3存储
-"""
+import sys
 import os
-import logging
-from dotenv import load_dotenv
-
+from pathlib import Path
 from app import create_app
+from app.logger import setup_logging
+from app.config import Config
 
-# 加载环境变量
-load_dotenv()
+# 设置日志系统
+config = Config()
+logger = setup_logging(config.LOG)
 
-# 创建应用实例
-app = create_app()
-
-if __name__ == '__main__':
-    # 环境配置
-    debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
-    port = int(os.environ.get('PORT', 5000))
-    host = os.environ.get('HOST', '0.0.0.0')
-    env = os.environ.get('FLASK_ENV', 'development')
-    
-    # 配置日志
-    log_level = logging.DEBUG if debug_mode else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s'
-    )
-    
-    print("=" * 60)
-    print("MVS Designer - 多维度照片3D建模服务 v2.0")
-    print("=" * 60)
-    print(f"环境模式: {env}")
-    print(f"服务地址: http://{host}:{port}")
-    print(f"调试模式: {debug_mode}")
-    print(f"数据库: {'已配置' if os.environ.get('DATABASE_URL') else '未配置'}")
-    print(f"S3存储: {'已配置' if os.environ.get('S3_BUCKET_NAME') else '未配置'}")
-    print("")
-    print("新功能:")
-    print("  ✓ 用户认证与授权")
-    print("  ✓ PostgreSQL数据库集成")
-    print("  ✓ S3对象存储支持")
-    print("  ✓ 3D模型在线预览")
-    print("  ✓ 用户任务管理")
-    print("")
-    print("API端点:")
-    print("认证相关:")
-    print("  POST /api/auth/register   - 用户注册")
-    print("  POST /api/auth/login      - 用户登录")
-    print("  POST /api/auth/logout     - 用户退出")
-    print("  GET  /api/auth/profile    - 用户信息")
-    print("")
-    print("任务相关:")
-    print("  GET  /                    - 服务信息")
-    print("  POST /api/upload          - 上传照片")
-    print("  POST /api/reconstruct     - 开始3D重建")
-    print("  GET  /api/status/<job_id> - 查看任务状态")
-    print("  GET  /api/download/<job_id> - 下载3D模型")
-    print("  GET  /api/preview/<job_id> - 预览3D模型")
-    print("  GET  /api/jobs            - 列出用户任务")
-    print("  GET  /api/jobs/<job_id>   - 获取任务详情")
-    print("  PUT  /api/jobs/<job_id>   - 更新任务信息")
-    print("  DELETE /api/jobs/<job_id> - 删除任务")
-    print("  GET  /api/stats           - 用户统计信息")
-    print("=" * 60)
-    
+def run_server():
+    app = create_app()
     app.run(
-        host=host,
-        port=port,
-        debug=debug_mode,
+        host=config.HOST,
+        port=config.PORT,
+        debug=config.DEBUG,
         threaded=True
     )
+
+def run_migrations():
+    """运行数据库迁移"""
+    try:
+        import subprocess
+        
+        logger.info("开始运行数据库迁移")
+        
+        # 确保在项目根目录
+        project_root = Path(__file__).parent
+        os.chdir(project_root)
+        
+        print("正在运行数据库迁移...")
+        logger.info(f"工作目录: {project_root}")
+        
+        # 设置环境变量
+        env = os.environ.copy()
+        env['FLASK_APP'] = 'app.factory:create_app'
+        
+        # 运行 Alembic 升级命令
+        result = subprocess.run([
+            sys.executable, '-m', 'flask', 'db', 'upgrade'
+        ], capture_output=True, text=True, cwd=project_root, env=env)
+        
+        if result.returncode == 0:
+            print("✅ 数据库迁移完成")
+            logger.info("数据库迁移成功完成")
+            if result.stdout:
+                print(result.stdout)
+                logger.debug(f"迁移输出: {result.stdout}")
+        else:
+            print("❌ 数据库迁移失败")
+            logger.error("数据库迁移失败")
+            if result.stderr:
+                print(f"错误信息: {result.stderr}")
+                logger.error(f"迁移错误: {result.stderr}")
+            if result.stdout:
+                print(f"输出信息: {result.stdout}")
+                logger.debug(f"迁移输出: {result.stdout}")
+            sys.exit(1)
+            
+    except Exception as e:
+        error_msg = f"运行迁移时发生错误: {e}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg, exc_info=True)
+        sys.exit(1)
+
+def run_init_db():
+    """运行初始化数据库"""
+    try:
+        from app import create_app
+        from app.models import db, User
+        app = create_app()
+        with app.app_context():
+            db.create_all()
+            logger.info("数据库初始化完成")
+            # Create sample admin user
+            admin_user = User(
+                username='admin',
+                email='admin@mvs-designer.com',
+                password='admin123456'
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            logger.info("创建管理员用户完成")
+
+    except Exception as e:
+        error_msg = f"运行初始化数据库时发生错误: {e}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg, exc_info=True)
+        sys.exit(1)
+
+
+def show_help():
+    """显示帮助信息"""
+    help_text = """
+MVS Designer - 多维度照片3D建模服务
+
+用法:
+    python app.py [选项]
+
+选项:
+    --server     启动 Web 服务器
+    --migrate    运行数据库迁移
+    --help       显示此帮助信息
+
+示例:
+    python app.py --server    # 启动服务器
+    python app.py --migrate   # 运行数据库迁移
+    python app.py --init-db   # 初始化数据库
+    python app.py --help      # 显示帮助
+
+环境变量:
+    确保已正确配置 .env 文件中的数据库连接信息
+    """
+    print(help_text)
+
+
+if __name__ == '__main__':
+    """
+    MVS Designer 主入口点
+    
+    支持的命令:
+    --server  启动 Web 服务器
+    --migrate 执行数据库迁移
+    --init-db 初始化数据库
+    --help    显示帮助信息
+    """
+    try:
+        logger.info(f"启动 MVS Designer，参数: {sys.argv}")
+        
+        if len(sys.argv) > 1:
+            command = sys.argv[1]
+            logger.info(f"执行命令: {command}")
+            
+            if command == '--server':
+                print("🚀 启动 MVS Designer 服务器...")
+                logger.info("启动 Web 服务器")
+                run_server()
+            elif command == '--migrate':
+                logger.info("执行数据库迁移")
+                run_migrations()
+            elif command == '--init-db':
+                logger.info("初始化数据库")
+                run_init_db()
+            elif command == '--help':
+                logger.info("显示帮助信息")
+                show_help()
+            else:
+                error_msg = f"未知命令: {command}"
+                print(f"❌ {error_msg}")
+                print("使用 --help 查看可用命令")
+                logger.error(error_msg)
+                sys.exit(1)
+        else:
+            print("❌ 请指定一个命令")
+            logger.warning("未指定命令参数")
+            show_help()
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        print("\n👋 程序被用户中断")
+        logger.info("程序被用户中断 (Ctrl+C)")
+        sys.exit(0)
+    except Exception as e:
+        error_msg = f"程序执行出错: {e}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg, exc_info=True)
+        sys.exit(1)

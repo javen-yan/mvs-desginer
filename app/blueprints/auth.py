@@ -1,25 +1,25 @@
 """
-Authentication routes for user management.
+Authentication blueprint.
 """
-import logging
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from .models import db, User
-from .auth import AuthService
+from ..extensions import db
+from ..models import User
+from ..auth import AuthService
+from ..middleware.auth import auth_required
+from ..middleware.validation import validate_json
+from ..logger import get_logger
 
-
-logger = logging.getLogger(__name__)
+logger = get_logger('auth')
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/register', methods=['POST'])
+@validate_json(required_fields=['username', 'email', 'password'])
 def register():
     """Register a new user."""
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body must be JSON'}), 400
         
         # Validate registration data
         is_valid, error_message = AuthService.validate_registration_data(data)
@@ -47,12 +47,11 @@ def register():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@validate_json(required_fields=['username', 'password'])
 def login():
     """Authenticate user and return access token."""
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body must be JSON'}), 400
         
         username_or_email = data.get('username') or data.get('email')
         password = data.get('password')
@@ -80,7 +79,7 @@ def login():
 
 
 @auth_bp.route('/logout', methods=['POST'])
-@jwt_required()
+@auth_required
 def logout():
     """Logout current user."""
     try:
@@ -97,7 +96,7 @@ def logout():
 
 
 @auth_bp.route('/refresh', methods=['POST'])
-@jwt_required(refresh=True)
+@auth_required
 def refresh():
     """Refresh user's access token."""
     try:
@@ -117,7 +116,7 @@ def refresh():
 
 
 @auth_bp.route('/profile', methods=['GET'])
-@jwt_required()
+@auth_required
 def get_profile():
     """Get current user's profile information."""
     try:
@@ -133,7 +132,8 @@ def get_profile():
 
 
 @auth_bp.route('/profile', methods=['PUT'])
-@jwt_required()
+@auth_required
+@validate_json(optional_fields=['email', 'password'])
 def update_profile():
     """Update current user's profile information."""
     try:
@@ -142,8 +142,6 @@ def update_profile():
             return jsonify({'error': 'User not found'}), 404
         
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body must be JSON'}), 400
         
         # Update allowed fields
         if 'email' in data:
@@ -175,32 +173,3 @@ def update_profile():
         db.session.rollback()
         logger.error(f"Update profile error: {e}")
         return jsonify({'error': 'Failed to update profile'}), 500
-
-
-@auth_bp.route('/users', methods=['GET'])
-@jwt_required()
-def list_users():
-    """List all users (admin functionality)."""
-    try:
-        # For now, any authenticated user can see user list
-        # In production, this should be restricted to admin users
-        page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 20, type=int), 100)
-        
-        users = User.query.paginate(
-            page=page,
-            per_page=per_page,
-            error_out=False
-        )
-        
-        return jsonify({
-            'users': [user.to_dict() for user in users.items],
-            'total': users.total,
-            'pages': users.pages,
-            'current_page': page,
-            'per_page': per_page
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"List users error: {e}")
-        return jsonify({'error': 'Failed to list users'}), 500

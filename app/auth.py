@@ -1,7 +1,6 @@
 """
 Authentication and authorization utilities.
 """
-import logging
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 from typing import Optional, Dict, Any, Tuple
@@ -11,10 +10,12 @@ from flask_jwt_extended import JWTManager, create_access_token, create_refresh_t
     jwt_required, get_jwt_identity, get_jwt
 from email_validator import validate_email, EmailNotValidError
 
-from .models import db, User, UserSession
+from .extensions import db
+from .models import User, UserSession
+from .logger import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger('auth')
 jwt = JWTManager()
 
 
@@ -285,44 +286,5 @@ class AuthService:
             }
 
 
-def auth_required(f):
-    """
-    Decorator to require authentication for a route.
-    
-    Args:
-        f: Function to decorate
-        
-    Returns:
-        Decorated function
-    """
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        user = AuthService.get_current_user()
-        if not user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        if not user.is_active:
-            return jsonify({'error': 'Account is disabled'}), 403
-        
-        return f(*args, **kwargs)
-    
-    return decorated_function
-
-
-def optional_auth(f):
-    """
-    Decorator for optional authentication.
-    
-    Args:
-        f: Function to decorate
-        
-    Returns:
-        Decorated function
-    """
-    @wraps(f)
-    @jwt_required(optional=True)
-    def decorated_function(*args, **kwargs):
-        return f(*args, **kwargs)
-    
-    return decorated_function
+# Authentication decorators moved to app.middleware.auth
+# Import them from there: from app.middleware.auth import auth_required, optional_auth

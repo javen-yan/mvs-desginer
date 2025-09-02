@@ -7,15 +7,16 @@ import subprocess
 import threading
 import time
 import shutil
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .models import db, ReconstructionJob
+from ..extensions import db
+from ..models import ReconstructionJob
+from ..utils import allowed_file
+from ..logger import get_logger
 
-
-logger = logging.getLogger(__name__)
+logger = get_logger('meshroom_service')
 
 
 class MeshroomService:
